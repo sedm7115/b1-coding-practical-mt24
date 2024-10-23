@@ -2,7 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 import matplotlib.pyplot as plt
-from .terrain import generate_reference_and_limits
+from terrain import generate_reference_and_limits
+import csv
+from controller import *
 
 class Submarine:
     def __init__(self):
@@ -46,11 +48,13 @@ class Trajectory:
     def plot(self):
         plt.plot(self.position[:, 0], self.position[:, 1])
         plt.show()
-
+        
     def plot_completed_mission(self, mission: Mission):
         x_values = np.arange(len(mission.reference))
+        print(mission.cave_depth)
         min_depth = np.min(mission.cave_depth)
         max_height = np.max(mission.cave_height)
+        print(x_values, min_depth, max_height)
 
         plt.fill_between(x_values, mission.cave_height, mission.cave_depth, color='blue', alpha=0.3)
         plt.fill_between(x_values, mission.cave_depth, min_depth*np.ones(len(x_values)), 
@@ -75,8 +79,15 @@ class Mission:
 
     @classmethod
     def from_csv(cls, file_name: str):
-        # You are required to implement this method
-        pass
+        reference, cave_height, cave_depth = [], [], [] #initiate arrays for appending
+        with open(file_name, newline = '\n') as csvfile:
+            csv_reader = csv.reader(csvfile, delimiter = ",")
+            next(csv_reader) #skip the first row
+            for row in csv_reader:
+                reference.append(row[0])
+                cave_height.append(row[1])
+                cave_depth.append(row[2])
+            return cls(reference, cave_height, cave_depth)
 
 
 class ClosedLoop:
@@ -98,6 +109,7 @@ class ClosedLoop:
             positions[t] = self.plant.get_position()
             observation_t = self.plant.get_depth()
             # Call your controller here
+            actions[t] = self.controller.get_control_action(mission.reference[t], observation_t)
             self.plant.transition(actions[t], disturbances[t])
 
         return Trajectory(positions)
@@ -105,3 +117,4 @@ class ClosedLoop:
     def simulate_with_random_disturbances(self, mission: Mission, variance: float = 0.5) -> Trajectory:
         disturbances = np.random.normal(0, variance, len(mission.reference))
         return self.simulate(mission, disturbances)
+    
