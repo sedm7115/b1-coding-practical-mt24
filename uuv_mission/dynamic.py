@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from terrain import generate_reference_and_limits
 import csv
+from controller import *
 
 class Submarine:
     def __init__(self):
@@ -47,11 +48,13 @@ class Trajectory:
     def plot(self):
         plt.plot(self.position[:, 0], self.position[:, 1])
         plt.show()
-
+        
     def plot_completed_mission(self, mission: Mission):
         x_values = np.arange(len(mission.reference))
+        print(mission.cave_depth)
         min_depth = np.min(mission.cave_depth)
         max_height = np.max(mission.cave_height)
+        print(x_values, min_depth, max_height)
 
         plt.fill_between(x_values, mission.cave_height, mission.cave_depth, color='blue', alpha=0.3)
         plt.fill_between(x_values, mission.cave_depth, min_depth*np.ones(len(x_values)), 
@@ -86,9 +89,6 @@ class Mission:
                 cave_depth.append(row[2])
             return cls(reference, cave_height, cave_depth)
 
-#initiate mission instance
-mission = Mission.from_csv("/Users/hjy3dp/b1-coding-practical-mt24/data/mission.csv")
-
 
 class ClosedLoop:
     def __init__(self, plant: Submarine, controller):
@@ -109,6 +109,7 @@ class ClosedLoop:
             positions[t] = self.plant.get_position()
             observation_t = self.plant.get_depth()
             # Call your controller here
+            actions[t] = self.controller.get_control_action(mission.reference[t], observation_t)
             self.plant.transition(actions[t], disturbances[t])
 
         return Trajectory(positions)
